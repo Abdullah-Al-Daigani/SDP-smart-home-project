@@ -60,10 +60,12 @@ void setup() // the setup function runs only once after startup
   while (WiFi.status() != WL_CONNECTED) // wait until WiFi is connected
     ;
 
-  Serial.println("WiFi connected");    // prints that the WiFi is connected to serial for debugging
-  Serial.println("IP address: ");      //
-  Serial.println(WiFi.localIP());      // prints the current IP address to serial for debugging
-                                       //
+  Serial.println("WiFi connected"); // prints that the WiFi is connected to serial for debugging
+  Serial.println("IP address: ");   //
+  Serial.println(WiFi.localIP());   // prints the current IP address to serial for debugging
+                                    //
+  IPAddress mqtt_server(192, 168, WiFi.localIP()[2], 179);
+
   client.setServer(mqtt_server, 1883); // set the IP address and port of the MQTT broker
   client.setCallback(callback);        // set the callback function
 
@@ -77,8 +79,6 @@ void setup() // the setup function runs only once after startup
   display.print("working!");   // print working in the display
   display.display();           // send the previous commands to the display
   delay(1000);                 // wait to make sure the display is displaying correctly
-
-  pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
 }
 
 void loop() // the loop function runs continuously
@@ -93,32 +93,22 @@ void loop() // the loop function runs continuously
   float potin_per = potin * 100 / 4095;     // calculate the reading as a percentage
   float brightness = potin_per * 255 / 100; // calculate the brightness equivalent
 
-  unsigned long now2 = millis(); // the current time in ms
-  if (now2 - lastMsg2 > 500)     // compare the current time with the time of the last message
-  {                              //
-    lastMsg2 = now2;             // set the last message time to now
-    if (i = 9)
-    {
-      i = 0;
-      pixels.clear(); // Set all pixel colors to 'off'
-    }
-    i = i + 1;
-    pixels.setPixelColor(i, pixels.Color(0, 150, 0));
-    pixels.show(); // Send the updated pixel colors to the hardware.
-  }
-
   float ina_power = ina219.getPower_mW();
-  analogWrite(ledPin, brightness); // output the brightness value as PWM to the LED
-  displayLoop(ina_power);          // display the percentage on the OLED display
+  float ina_current = ina219.getCurrent_mA();
+  float ina_voltage = ina219.getBusVoltage_V();
+  analogWrite(ledPin, brightness);                  // output the brightness value as PWM to the LED
+  displayLoop(ina_power, ina_current, ina_voltage); // display the percentage on the OLED display
 
-  unsigned long now = millis();                // the current time in ms
-  if (now - lastMsg > 1000)                    // compare the current time with the time of the last message
-  {                                            //
-    lastMsg = now;                             // set the last message time to now
-    StaticJsonDocument<256> PubJSON;           // make a new JSON document to put the data into
-    char buffer[256];                          // make a buffer variable to store the data to temporarily
-    PubJSON["potin_per"] = potin_per;          // add the data to the JSON document
-    PubJSON["brightness"] = brightness;        // add the data to the JSON document
+  unsigned long now = millis();         // the current time in ms
+  if (now - lastMsg > 1000)             // compare the current time with the time of the last message
+  {                                     //
+    lastMsg = now;                      // set the last message time to now
+    StaticJsonDocument<256> PubJSON;    // make a new JSON document to put the data into
+    char buffer[256];                   // make a buffer variable to store the data to temporarily
+    PubJSON["potin_per"] = potin_per;   // add the data to the JSON document
+    PubJSON["brightness"] = brightness; // add the data to the JSON document
+    PubJSON["ina_power"] = ina_power;
+    PubJSON["ina_current"] = ina_current;
     size_t n = serializeJson(PubJSON, buffer); // convert the JSON document to a character array to send over the MQTT protocol
     // Serial.println(buffer);                     // prints the output to serial for debugging
     client.publish("/home/sensors", buffer, n); // sends the data to the host through the MQTT protocol
@@ -145,7 +135,6 @@ void reconnect() // reconnects to the MQTT client
       display.clearDisplay();                   //
       display.setCursor(0, 0);                  // display the error and the server ip for debugging
       display.println("failed to connect to:"); //
-      display.println(mqtt_server);             //
       display.setTextSize(2);                   //
 
       Serial.print("failed, rc=");               // prints to serial for debugging
@@ -156,19 +145,20 @@ void reconnect() // reconnects to the MQTT client
   }
 }
 
-void displayLoop(float ina_power) // prints the current PWM percentage and the last message to the OLED
+void displayLoop(float ina_power, float ina_current, float ina_voltage) // prints the current PWM percentage and the last message to the OLED
 {
-  display.clearDisplay();        //
-  display.setCursor(30, 0);      //
-  display.println("Power:");     //
-  display.setCursor(30, 16);     //
-  display.print(ina_power);      //
-  display.print("mW");           //
-  display.setCursor(0, 32);      //
-  display.println("last msg: "); //
-  display.setCursor(1, 48);      //
-  display.setTextSize(1);        //
-  display.print(message);        //
-  display.setTextSize(2);        //
-  display.display();             //
+  display.clearDisplay();     //
+  display.setCursor(30, 0);   //
+  display.println("Power:");  //
+  display.setCursor(30, 16);  //
+  display.print(ina_power);   //
+  display.print("mW");        //
+  display.setCursor(30, 32);  //
+  display.print(ina_current); //
+  display.print("mA");        //
+  display.setCursor(30, 48);  //
+  display.print(ina_voltage); //
+  display.print("V");         //
+  display.setTextSize(2);     //
+  display.display();          //
 }

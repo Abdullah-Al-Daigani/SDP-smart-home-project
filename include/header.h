@@ -29,16 +29,16 @@ String message = "No messages yet";      // a variable used to store the incomin
 unsigned long lastMsg = millis();        // a variable used to set the frequency of the data reports
 
 void reconnect();                  // declaration of the function used to reconnect to the MQTT broker
-void displayLoop(float potin_per); // declaration of the display loop
+void displayLoop(float ina_power, float ina_current, float ina_voltage); // declaration of the display loop
 
 // other wifi cred
 const char *ssid = "W";                     // WiFi ssid
 const char *password = "12121212";          // WiFi password
-const char *mqtt_server = "192.168.72.179"; // MQTT broker ip address
+
 
 // const char *ssid = "Nutmeg-2.4GHz";       // WiFi ssid
 // const char *password = "Qw121212";        // WiFi password
-// const char *mqtt_server = "192.168.1.12"; // MQTT broker ip address
+
 
 // objects generation:
 
@@ -51,7 +51,3 @@ PubSubClient client(espClient);                                           // the
 #ifdef __AVR__
 #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
-
-Adafruit_NeoPixel pixels(8, 26, NEO_GRB + NEO_KHZ800);
-unsigned long lastMsg2 = millis(); // a variable used to set the frequency of the data reports
-int i = 0;
