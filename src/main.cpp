@@ -1,5 +1,31 @@
 #include <header.h>
 
+BLYNK_WRITE(V3)
+{
+  int slider = param.asInt();
+  Serial.println(slider);
+}
+
+BLYNK_CONNECTED()
+{
+  Blynk.virtualWrite(V0, 0);
+  Blynk.virtualWrite(V1, 0);
+  Blynk.virtualWrite(V2, 0);
+}
+
+void BlynkMsgUp()
+{
+  Blynk.virtualWrite(V0, (double)ina_voltage);
+  Blynk.virtualWrite(V1, (double)ina_current);
+  Blynk.virtualWrite(V2, (double)ina_power);
+}
+
+BLYNK_WRITE(2)
+{
+  int value = param.asInt();
+  digitalWrite(2, value);
+}
+
 void callback(char *topic, byte *payload, unsigned int length) // the call back function which gets called with incoming MQTT messages
 {
   // prints the incoming message topic to serial for debugging
@@ -50,20 +76,26 @@ void setup() // the setup function runs only once after startup
   while (!ina219.begin())                            // wait until the power monitor object is active before continuing
     ;                                                //
 
-  pinMode(ledPin, OUTPUT);      // set LED pin to output pin
-  pinMode(potPin, INPUT);       // set potentiometer pin to input pin
-  pinMode(LED_BUILTIN, OUTPUT); // set embedded LED pin to output pin
+  pinMode(ledPin, OUTPUT); // set LED pin to output pin
+  pinMode(potPin, INPUT);  // set potentiometer pin to input pin
+  pinMode(2, OUTPUT);      // set embedded LED pin to output pin
 
-  Serial.print("Connecting to ");       // send to serial that WiFi connection is being attempted
-  Serial.println(ssid);                 // show ssid of the network you're trying to connect to
-  WiFi.begin(ssid, password);           // initiate the WiFi connection
-  while (WiFi.status() != WL_CONNECTED) // wait until WiFi is connected
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, password);
+  while (!Blynk.connected())
     ;
+
+  Serial.print("Connecting to "); // send to serial that WiFi connection is being attempted
+  Serial.println(ssid);           // show ssid of the network you're trying to connect to
+  // WiFi.mode(WIFI_STA);
+  // WiFi.begin(ssid, password);           // initiate the WiFi connection
+  // while (WiFi.status() != WL_CONNECTED) // wait until WiFi is connected
+  //   ;
 
   Serial.println("WiFi connected"); // prints that the WiFi is connected to serial for debugging
   Serial.println("IP address: ");   //
   Serial.println(WiFi.localIP());   // prints the current IP address to serial for debugging
                                     //
+  // IPAddress mqtt_server(192, 168, 133, 179);
   IPAddress mqtt_server(192, 168, WiFi.localIP()[2], 179);
 
   client.setServer(mqtt_server, 1883); // set the IP address and port of the MQTT broker
@@ -79,6 +111,8 @@ void setup() // the setup function runs only once after startup
   display.print("working!");   // print working in the display
   display.display();           // send the previous commands to the display
   delay(1000);                 // wait to make sure the display is displaying correctly
+
+  timer.setInterval(100L, BlynkMsgUp);
 }
 
 void loop() // the loop function runs continuously
@@ -93,14 +127,14 @@ void loop() // the loop function runs continuously
   float potin_per = potin * 100 / 4095;     // calculate the reading as a percentage
   float brightness = potin_per * 255 / 100; // calculate the brightness equivalent
 
-  float ina_power = ina219.getPower_mW();
-  float ina_current = ina219.getCurrent_mA();
-  float ina_voltage = ina219.getBusVoltage_V();
+  ina_power = ina219.getPower_mW();
+  ina_current = ina219.getCurrent_mA();
+  ina_voltage = ina219.getBusVoltage_V();
   analogWrite(ledPin, brightness);                  // output the brightness value as PWM to the LED
   displayLoop(ina_power, ina_current, ina_voltage); // display the percentage on the OLED display
 
   unsigned long now = millis();         // the current time in ms
-  if (now - lastMsg > 1000)             // compare the current time with the time of the last message
+  if (now - lastMsg > 200)              // compare the current time with the time of the last message
   {                                     //
     lastMsg = now;                      // set the last message time to now
     StaticJsonDocument<256> PubJSON;    // make a new JSON document to put the data into
@@ -109,12 +143,15 @@ void loop() // the loop function runs continuously
     PubJSON["brightness"] = brightness; // add the data to the JSON document
     PubJSON["ina_power"] = ina_power;
     PubJSON["ina_current"] = ina_current;
+    PubJSON["ina_voltage"] = ina_voltage;
     size_t n = serializeJson(PubJSON, buffer); // convert the JSON document to a character array to send over the MQTT protocol
     // Serial.println(buffer);                     // prints the output to serial for debugging
     client.publish("/home/sensors", buffer, n); // sends the data to the host through the MQTT protocol
     // Serial.println(ina_power);
   }
   client.loop(); // required for the MQTT client to function correctly
+  Blynk.run();
+  timer.run();
 }
 
 void reconnect() // reconnects to the MQTT client
@@ -123,11 +160,12 @@ void reconnect() // reconnects to the MQTT client
   while (!client.connected()) // check whether the client is connected
   {
     Serial.print("Attempting MQTT connection..."); // prints to serial for debugging
-    if (client.connect("ESP32-1"))                 // Attempt to connect
-    {                                              //
-      Serial.println("connected");                 // prints to serial for debugging
-      client.publish("outTopic", "hello world");   // once connected, publish an announcement
-      client.subscribe("/test/ESP1");              // resubscribe
+    // WiFi.mode(WIFI_STA);
+    if (client.connect("ESP32-1"))               // Attempt to connect
+    {                                            //
+      Serial.println("connected");               // prints to serial for debugging
+      client.publish("outTopic", "hello world"); // once connected, publish an announcement
+      client.subscribe("/test/ESP1");            // resubscribe
     }
     else
     {
