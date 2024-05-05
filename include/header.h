@@ -30,17 +30,24 @@
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET -1    // Reset pin for the OLED display
 
-int ledPin = 13;                         // the pin # the LED is connected to
-int potPin = 34;                         // the pin # the potentiometer is connected to
+int ledPin = 13; // the pin # the LED is connected to
+int potPin = 34; // the pin # the potentiometer is connected to
+// int relayPin1 = 18;
+// int relayPin2 = 19;
 const char *content = "no messages yet"; // declares and initializes a pointer to store the latest message recieved from Telegram
+int command = 3;                         // declares and initializes a pointer to store the latest command
 String message = "No messages yet";      // a variable used to store the incoming telegram message
 unsigned long lastMsg = millis();        // a variable used to set the frequency of the data reports
 double ina_power;
 double ina_current;
 double ina_voltage;
+int timeToFlip = 10;
 
 void reconnect();                                                        // declaration of the function used to reconnect to the MQTT broker
 void displayLoop(float ina_power, float ina_current, float ina_voltage); // declaration of the display loop
+
+void loadUpdate(int command);
+int relay[] = {18, 19};
 
 // other wifi cred
 const char *ssid = "W";            // WiFi ssid
@@ -54,9 +61,10 @@ const char *password = "12121212"; // WiFi password
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET); // the display object used to control the OLED display
 Adafruit_INA219 ina219;                                                   // the object used to communicate with the power monitor module
-WiFiClient espClient;                                                     // initialization of the onboard WiFi client
-PubSubClient client(espClient);                                           // the initialization of the PubSubClient used for the MQTT protocol
-BlynkTimer timer;                                                         // an object used for timing the messages
+Adafruit_INA219 ina219_B(0x41);
+WiFiClient espClient;           // initialization of the onboard WiFi client
+PubSubClient client(espClient); // the initialization of the PubSubClient used for the MQTT protocol
+BlynkTimer timer;               // an object used for timing the messages
 
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
