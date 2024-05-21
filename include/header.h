@@ -66,7 +66,10 @@ WiFiClient espClient;           // initialization of the onboard WiFi client
 PubSubClient client(espClient); // the initialization of the PubSubClient used for the MQTT protocol
 BlynkTimer timer;               // an object used for timing the messages
 
+
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
 #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
+
+Adafruit_NeoPixel pixels(2, 23, NEO_GRB + NEO_KHZ800);

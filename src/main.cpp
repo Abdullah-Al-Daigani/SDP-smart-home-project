@@ -86,7 +86,15 @@ void setup() // the setup function runs only once after startup
     pinMode(relay[i], OUTPUT);
     digitalWrite(relay[i], 0);
   }
-  
+
+  pixels.begin();
+  pixels.clear();
+  for (int i = 0; i < 2; i++)
+  { 
+    pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+    pixels.show();
+    }
+
   // pinMode(ledPin, OUTPUT); // set LED pin to output pin
   // pinMode(potPin, INPUT);  // set potentiometer pin to input pin
   pinMode(2, OUTPUT);      // set embedded LED pin to output pin
@@ -184,6 +192,7 @@ void loop() // the loop function runs continuously
   client.loop(); // required for the MQTT client to function correctly
   Blynk.run();
   timer.run();
+  pixels.show();
 }
 
 void reconnect() // reconnects to the MQTT client
@@ -234,12 +243,29 @@ void displayLoop(float ina_power, float ina_current, float ina_voltage) // print
 }
 
 void loadUpdate(int command){
-//   for (int i = 0; i < 3; i++)
-//   {
-//     digitalWrite(load[i],1);
-//   }
-//   for (int i = 0; i < command; i++)
-//   {
-//     digitalWrite(load[i], 0);
-//   }
+  if (command > 1)
+  {
+    for (int i = 0; i < 2; i++)
+    {
+      pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+      pixels.show();
+      digitalWrite(relay[i], 0);
+    }
+  } else if (command > 0)
+  {
+    for (int i = 0; i < 2; i++)
+    {
+      pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+      pixels.show();
+      digitalWrite(relay[i], 1);
+    }
+  } else {
+    for (int i = 0; i < 2; i++)
+    {
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+      pixels.show();
+      digitalWrite(relay[i], 1);
+    }
+  }
+  
 }
